@@ -13,7 +13,7 @@ const Navbar = () => {
 
   return (
     <div
-      className={`md:block md:glass-effect bg-black/80 md:bg-black/40 absolute z-10 w-full md:w-[60%] md:rounded-3xl md:left-[20%] md:mt-10`}
+      className={`glass-effect bg-black/80 md:bg-black/40 absolute z-10 w-full md:w-[60%] md:rounded-3xl md:left-[20%] md:mt-10`}
     >
       <div className="text-white flex flex-col md:flex-row justify-around items-start px-4 md:px-0 md:items-center py-8">
         <div>
