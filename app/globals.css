@@ -1,40 +1,150 @@
 @import "tailwindcss";
 
+html {
+  scroll-behavior: smooth;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --primary-color: #007bff;
-  --secondary-color: #0056b3;
+  /* Light Theme Colors */
+  --background: #f2f8fc;
+  --surface: #ffffff;
+  --border: #e1ebf2;
+  --primary: #00b09b;
+  --secondary: #3a66b8;
+  --text: #0f2a4a;
+  --text-secondary: #5b7897;
+  --hover: #e9f7f5;
+  --foreground: var(--text);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* System preference dark mode */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    /* Only apply if .light class is not manually set */
+    --background: #0f1c2e;
+    --surface: #162740;
+    --border: #0a1624;
+    --primary: #00cfb6;
+    --secondary: #6185cf;
+    --text: #ffffff;
+    --text-secondary: #e1ebf2;
+    --hover: #1a3957;
+    --foreground: var(--text);
+  }
+}
+
+/* Manual dark mode - this overrides system preference */
+.dark {
+  --background: #0f1c2e;
+  --surface: #162740;
+  --border: #0a1624;
+  --primary: #00cfb6;
+  --secondary: #6185cf;
+  --text: #ffffff;
+  --text-secondary: #e1ebf2;
+  --hover: #1a3957;
+  --foreground: var(--text);
+}
+
+/* Manual light mode - this overrides system preference */
+.light {
+  --background: #f2f8fc;
+  --surface: #ffffff;
+  --border: #e1ebf2;
+  --primary: #00b09b;
+  --secondary: #3a66b8;
+  --text: #0f2a4a;
+  --text-secondary: #5b7897;
+  --hover: #e9f7f5;
+  --foreground: var(--text);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }
 
-/* components/Hero.module.css */
-.hero {
-  @apply relative h-screen flex items-center justify-center text-center text-white;
-}
+/* Tailwind utility classes */
+@layer utilities {
+  .bg-theme-background {
+    background-color: var(--background);
+  }
+  .bg-theme-surface {
+    background-color: var(--surface);
+  }
+  .bg-theme-border {
+    background-color: var(--border);
+  }
+  .bg-theme-primary {
+    background-color: var(--primary);
+  }
+  .bg-theme-secondary {
+    background-color: var(--secondary);
+  }
+  .bg-theme-hover {
+    background-color: var(--hover);
+  }
 
-.heroContent {
-  @apply relative z-10 px-4;
-}
+  .text-theme-primary {
+    color: var(--text);
+  }
+  .text-theme-secondary {
+    color: var(--text-secondary);
+  }
 
-.heroContent h1 {
-  @apply text-4xl md:text-5xl font-bold mb-6;
-}
+  .border-theme-border {
+    border-color: var(--border);
+  }
+  .border-theme-primary {
+    border-color: var(--primary);
+  }
 
-.background {
-  @apply absolute inset-0 z-0;
-}
+  .ring-theme-primary {
+    --tw-ring-color: var(--primary);
+  }
 
-.background::after {
-  content: "";
-  @apply absolute inset-0 bg-black/10;
+  .hover\:bg-theme-hover:hover {
+    background-color: var(--hover);
+  }
+  .hover\:text-theme-primary:hover {
+    color: var(--primary);
+  }
+  .hover\:border-theme-primary:hover {
+    border-color: var(--primary);
+  }
+
+  .focus\:ring-theme-primary:focus {
+    --tw-ring-color: var(--primary);
+  }
+
+  .active\:bg-theme-primary:active {
+    background-color: var(--primary);
+  }
+
+  /* Hide scrollbar but allow scrolling */
+  .hide-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+  }
 }
 
 .glass-effect {
   @apply backdrop-blur-lg border border-white/10 shadow-lg;
+}
+
+/* Optional: Add transition for smooth theme switching */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease,
+    border-color 0.3s ease;
 }
