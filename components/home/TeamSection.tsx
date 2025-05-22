@@ -131,8 +131,8 @@ export function TeamSection() {
                     <Image
                       src={member.image}
                       alt={member.name}
-                      layout="fill"
-                      objectFit="cover"
+                      fill
+                      className="object-cover"
                     />
                   </div>
                   <div className="p-6">

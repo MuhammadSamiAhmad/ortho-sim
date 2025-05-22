@@ -115,9 +115,9 @@ export function HeroSection() {
           src="/images/289jpXiaomi-VR.jpg"
           alt="VR Experience"
           fill
-          objectFit="cover"
           quality={100}
           priority
+          className="object-cover"
         />
         {/* Overlay for better text readability */}
         <div className="absolute inset-0 bg-black/50"></div>
@@ -150,7 +150,7 @@ export function HeroSection() {
               <Button
                 variant="secondary"
                 size="lg"
-                className="group text-base bg-[#00cfb6] text-[#1a3957] flex items-center justify-center rounded-full px-6 py-3 font-semibold transition duration-300 ease-in-out hover:bg-[#00cfb6]/90 focus:outline-none focus:ring-2 focus:ring-[#00cfb6]/50 focus:ring-offset-2 focus:ring-offset-[#1a3957] shadow-lg"
+                className="group text-base bg-theme-primary text-[#1a3957] flex items-center justify-center rounded-full px-6 py-3 font-semibold transition duration-300 ease-in-out hover:bg-[#00cfb6]/90 focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-[#1a3957] shadow-lg"
               >
                 Get Started
                 <span ref={arrowRef}>

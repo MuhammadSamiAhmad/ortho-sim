@@ -74,31 +74,31 @@ export function LandingNavbar() {
           <nav className="hidden md:flex items-center gap-8">
             <Link
               href="#hero"
-              className="text-white text-lg hover:text-[#00cfb6] font-medium hover:text-primary transition-colors"
+              className="text-white text-lg font-medium transition-colors hover:text-theme-primary"
             >
               Home
             </Link>
             <Link
               href="#about"
-              className="text-white text-lg hover:text-[#00cfb6] font-medium hover:text-primary transition-colors"
+              className="text-white text-lg font-medium transition-colors hover:text-theme-primary"
             >
               About
             </Link>
             <Link
               href="#features"
-              className="text-white text-lg hover:text-[#00cfb6] font-medium hover:text-primary transition-colors"
+              className="text-white text-lg font-medium transition-colors hover:text-theme-primary"
             >
               Features
             </Link>
             <Link
               href="#team"
-              className="text-white text-lg hover:text-[#00cfb6] font-medium hover:text-primary transition-colors"
+              className="text-white text-lg font-medium transition-colors hover:text-theme-primary"
             >
               Team
             </Link>
             <Link
               href="#contact"
-              className="text-white text-lg hover:text-[#00cfb6] font-medium hover:text-primary transition-colors"
+              className="text-white text-lg font-medium transition-colors hover:text-theme-primary"
             >
               Contact
             </Link>
@@ -108,7 +108,7 @@ export function LandingNavbar() {
             <Button
               variant="outline"
               asChild
-              className="border-white/20 text-base text-white hover:bg-white/10 hover:text-[#00cfb6] rounded-full px-6"
+              className="border-white/20 text-base text-white rounded-full px-6 hover:bg-white/10 hover:text-theme-primary"
             >
               <Link href="/login">Login</Link>
             </Button>
@@ -136,35 +136,35 @@ export function LandingNavbar() {
             <nav className="flex flex-col gap-4">
               <Link
                 href="#hero"
-                className="text-white text-base font-medium hover:text-primary"
+                className="text-white text-base font-medium hover:text-theme-primary"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Home
               </Link>
               <Link
                 href="#about"
-                className="text-white text-base font-medium hover:text-primary"
+                className="text-white text-base font-medium hover:text-theme-primary"
                 onClick={() => setIsMenuOpen(false)}
               >
                 About
               </Link>
               <Link
                 href="#features"
-                className="text-white text-base font-medium hover:text-primary"
+                className="text-white text-base font-medium hover:text-theme-primary"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Features
               </Link>
               <Link
                 href="#team"
-                className="text-white text-base font-medium hover:text-primary"
+                className="text-white text-base font-medium hover:text-theme-primary"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Team
               </Link>
               <Link
                 href="#contact"
-                className="text-white text-base font-medium hover:text-primary"
+                className="text-white text-base font-medium hover:text-theme-primary"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Contact
@@ -173,7 +173,7 @@ export function LandingNavbar() {
                 <Button
                   variant="outline"
                   asChild
-                  className="w-full border-white/20 text-white hover:bg-white/10 rounded-full"
+                  className="w-full border-white/20 text-white rounded-full hover:bg-white/10"
                 >
                   <Link href="/login">Login</Link>
                 </Button>
