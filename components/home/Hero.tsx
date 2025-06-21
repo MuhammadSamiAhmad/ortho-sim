@@ -142,7 +142,7 @@ export function HeroSection() {
             feedback and performance analytics.
           </p>
 
-          <Link href="/login">
+          <Link href="/get-started">
             <div
               ref={buttonContainerRef}
               className="max-w-[150px] mt-10 flex items-center"
