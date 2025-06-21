@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String          @id @default(uuid())
+  email          String          @unique
+  password       String
+  name           String
+  userType       UserType
+  profileImage   String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  aiChatLogs     AIChatLog[]
+  mentorProfile  MentorProfile?
+  traineeProfile TraineeProfile?
+
+  @@map("users")
+}
+
+model MentorProfile {
+  id               String           @id @default(uuid())
+  userId           String           @unique
+  specialization   String?
+  department       String?
+  qualification    String?
+  mentorCode       String           @unique
+  mentorCodeExpiry DateTime?
+  isCodeActive     Boolean          @default(true)
+  feedbacks        Feedback[]
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trainees         TraineeProfile[]
+
+  @@index([mentorCode])
+  @@map("mentor_profiles")
+}
+
+model TraineeProfile {
+  id              String           @id @default(uuid())
+  userId          String           @unique
+  institution     String?
+  graduationYear  Int?
+  mentorId        String
+  leaderboard     Leaderboard?
+  surgeryAttempts SurgeryAttempt[]
+  mentor          MentorProfile    @relation(fields: [mentorId], references: [id])
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([mentorId])
+  @@map("trainee_profiles")
+}
+
+model SurgeryAttempt {
+  id                          String         @id @default(uuid())
+  traineeProfileId            String
+  attemptDate                 DateTime       @default(now())
+  totalTime                   Int            @default(0)
+  score                       String         @default("0%")
+  xrayImagePath               String?
+  isCompleted                 Boolean        @default(false)
+  performanceDetail           Json?
+  actualNailDepth             Float?
+  actualThandleDepth          Float?
+  actualWireDepth             Float?
+  cuttingAccuracy             Float?
+  cuttingScreenshotImg        String?
+  distalLockingXraySideView   String?
+  distalLockingXrayTopView    String?
+  distalScrewAccuracy         Float?
+  entrySiteDuration           Float?
+  firstProximalLockingXray    String?
+  firstProximalScrewAccuracy  Float?
+  guideWireXrayImg            String?
+  lockingClosureDuration      Float?
+  nailInsertionDuration       Float?
+  nailLockingSteps            Json?
+  nailPositionAccuracy        Float?
+  nailXrayImg                 String?
+  neededNailDepth             Float?
+  neededThandleDepth          Float?
+  neededWireDepth             Float?
+  reductionAccuracy           Float?
+  reductionActualBoneLength   Float?
+  reductionAfterXrayImg       String?
+  reductionBeforeXrayImg      String?
+  reductionDuration           Float?
+  reductionNeededBoneLength   Float?
+  secondProximalLockingXray   String?
+  secondProximalScrewAccuracy Float?
+  stepToolAccuracy            Json?
+  stepsAccuracy               Float?
+  tHandleAccuracy             Float?
+  toolUsageOrder              String[]
+  wirePositionAccuracy        Float?
+  feedbacks                   Feedback[]
+  traineeProfile              TraineeProfile @relation(fields: [traineeProfileId], references: [id], onDelete: Cascade)
+
+  @@index([traineeProfileId])
+  @@index([attemptDate])
+  @@index([score])
+  @@index([isCompleted])
+  @@map("surgery_attempts")
+}
+
+model Feedback {
+  id               String         @id @default(uuid())
+  surgeryAttemptId String
+  mentorProfileId  String
+  comment          String
+  rating           Int?
+  createdAt        DateTime       @default(now())
+  mentor           MentorProfile  @relation(fields: [mentorProfileId], references: [id])
+  surgeryAttempt   SurgeryAttempt @relation(fields: [surgeryAttemptId], references: [id], onDelete: Cascade)
+
+  @@index([surgeryAttemptId])
+  @@index([mentorProfileId])
+  @@map("feedbacks")
+}
+
+model Leaderboard {
+  id                String         @id @default(uuid())
+  traineeProfileId  String         @unique
+  totalAttempts     Int            @default(0)
+  bestScore         String?
+  averageScore      String?
+  totalTrainingTime Int            @default(0)
+  rank              Int?
+  traineeProfile    TraineeProfile @relation(fields: [traineeProfileId], references: [id], onDelete: Cascade)
+
+  @@index([rank])
+  @@map("leaderboards")
+}
+
+model RecommendedTutorial {
+  id            String   @id @default(uuid())
+  title         String
+  youtubeUrl    String   @unique
+  description   String?
+  thumbnailUrl  String?
+  tags          String[]
+  difficulty    String?
+  relatedSkills String[]
+  addedAt       DateTime @default(now())
+  viewCount     Int      @default(0)
+
+  @@map("recommended_tutorials")
+}
+
+model AIChatLog {
+  id        String   @id @default(uuid())
+  userId    String
+  prompt    String
+  response  String
+  timestamp DateTime @default(now())
+  category  String?
+  rating    Int?
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([timestamp])
+  @@map("ai_chat_logs")
+}
+
+enum UserType {
+  MENTOR
+  TRAINEE
+}
