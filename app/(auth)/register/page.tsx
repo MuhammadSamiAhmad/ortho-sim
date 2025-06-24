@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,9 @@ import {
 import { useAuthStore } from "@/lib/auth-store";
 import {
   MentorRegistrationSchema,
-  TraineeRegistrationSchema,
+  TraineeRegistrationFormSchema,
+  type MentorRegistrationFormData,
+  type TraineeRegistrationFormData,
   type MentorRegistrationData,
   type TraineeRegistrationData,
 } from "@/lib/validations";
@@ -104,7 +106,7 @@ const RegisterPage = () => {
   // Form setup based on user type
   const isMentor = userType === "MENTOR";
 
-  const mentorForm = useForm<MentorRegistrationData>({
+  const mentorForm = useForm<MentorRegistrationFormData>({
     resolver: zodResolver(MentorRegistrationSchema),
     defaultValues: {
       name: "",
@@ -115,17 +117,36 @@ const RegisterPage = () => {
     },
   });
 
-  const traineeForm = useForm<TraineeRegistrationData>({
-    resolver: zodResolver(TraineeRegistrationSchema),
+  const traineeForm = useForm<TraineeRegistrationFormData>({
+    resolver: zodResolver(TraineeRegistrationFormSchema),
     defaultValues: {
       name: "",
       email: "",
       password: "",
       institution: "",
-      graduationYear: new Date().getFullYear(),
+      graduationYear: new Date().getFullYear().toString(),
       mentorCode: "",
     },
   });
+
+  // Properly typed handlers that work with React Hook Form
+  const handleMentorRegistration: SubmitHandler<
+    MentorRegistrationFormData
+  > = async (formData) => {
+    // Since we're using zodResolver, the data is already validated and transformed
+    // We can safely cast it to the validated type
+    const validatedData = formData as unknown as MentorRegistrationData;
+    await handleRegistration(validatedData);
+  };
+
+  const handleTraineeRegistration: SubmitHandler<
+    TraineeRegistrationFormData
+  > = async (formData) => {
+    // Since we're using zodResolver, the data is already validated and transformed
+    // The graduationYear string has been converted to number by Zod
+    const validatedData = formData as unknown as TraineeRegistrationData;
+    await handleRegistration(validatedData);
+  };
 
   // GSAP animations
   useGSAP(
@@ -389,38 +410,38 @@ const RegisterPage = () => {
     );
   }
 
-  // Mentor form fields - FIXED: Removed 'department' field to match schema
+  // Update the field type definitions:
   const mentorFields = [
     {
-      name: "name" as keyof MentorRegistrationData,
+      name: "name" as keyof MentorRegistrationFormData,
       label: "Full Name",
       type: "text",
       icon: User,
       placeholder: "Dr. John Smith",
     },
     {
-      name: "email" as keyof MentorRegistrationData,
+      name: "email" as keyof MentorRegistrationFormData,
       label: "Email",
       type: "email",
       icon: Mail,
       placeholder: "john.smith@hospital.com",
     },
     {
-      name: "password" as keyof MentorRegistrationData,
+      name: "password" as keyof MentorRegistrationFormData,
       label: "Password",
       type: "password",
       icon: Lock,
       placeholder: "••••••••",
     },
     {
-      name: "specialization" as keyof MentorRegistrationData,
+      name: "specialization" as keyof MentorRegistrationFormData,
       label: "Specialization",
       type: "text",
       icon: GraduationCap,
       placeholder: "Orthopedic Surgery",
     },
     {
-      name: "qualification" as keyof MentorRegistrationData,
+      name: "qualification" as keyof MentorRegistrationFormData,
       label: "Qualification",
       type: "text",
       icon: GraduationCap,
@@ -431,42 +452,42 @@ const RegisterPage = () => {
   // Trainee form fields
   const traineeFields = [
     {
-      name: "name" as keyof TraineeRegistrationData,
+      name: "name" as keyof TraineeRegistrationFormData,
       label: "Full Name",
       type: "text",
       icon: User,
       placeholder: "John Doe",
     },
     {
-      name: "email" as keyof TraineeRegistrationData,
+      name: "email" as keyof TraineeRegistrationFormData,
       label: "Email",
       type: "email",
       icon: Mail,
       placeholder: "john.doe@university.edu",
     },
     {
-      name: "password" as keyof TraineeRegistrationData,
+      name: "password" as keyof TraineeRegistrationFormData,
       label: "Password",
       type: "password",
       icon: Lock,
       placeholder: "••••••••",
     },
     {
-      name: "institution" as keyof TraineeRegistrationData,
+      name: "institution" as keyof TraineeRegistrationFormData,
       label: "Institution",
       type: "text",
       icon: Building,
       placeholder: "Medical University",
     },
     {
-      name: "graduationYear" as keyof TraineeRegistrationData,
+      name: "graduationYear" as keyof TraineeRegistrationFormData,
       label: "Graduation Year",
-      type: "number",
+      type: "text",
       icon: Calendar,
       placeholder: "2025",
     },
     {
-      name: "mentorCode" as keyof TraineeRegistrationData,
+      name: "mentorCode" as keyof TraineeRegistrationFormData,
       label: "Mentor Code",
       type: "text",
       icon: Code,
@@ -563,7 +584,7 @@ const RegisterPage = () => {
             {/* Mentor Registration Form */}
             {isMentor && (
               <form
-                onSubmit={mentorForm.handleSubmit(handleRegistration)}
+                onSubmit={mentorForm.handleSubmit(handleMentorRegistration)}
                 className="space-y-4"
               >
                 {mentorFields.map((field, index) => {
@@ -595,8 +616,6 @@ const RegisterPage = () => {
                             hasServerError || formError
                               ? field.name === "email"
                                 ? "border-orange-500/50"
-                                : field.name === "mentorCode"
-                                ? "border-red-500/50"
                                 : "border-yellow-500/50"
                               : ""
                           }`}
@@ -642,7 +661,7 @@ const RegisterPage = () => {
             {/* Trainee Registration Form */}
             {!isMentor && (
               <form
-                onSubmit={traineeForm.handleSubmit(handleRegistration)}
+                onSubmit={traineeForm.handleSubmit(handleTraineeRegistration)}
                 className="space-y-4"
               >
                 {traineeFields.map((field, index) => {
@@ -663,9 +682,7 @@ const RegisterPage = () => {
                       <div className="relative">
                         <Icon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <Input
-                          {...traineeForm.register(field.name, {
-                            valueAsNumber: field.name === "graduationYear",
-                          })}
+                          {...traineeForm.register(field.name)}
                           type={
                             field.name === "password" && showPassword
                               ? "text"

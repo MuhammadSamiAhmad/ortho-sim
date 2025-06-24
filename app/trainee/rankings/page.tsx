@@ -14,8 +14,9 @@ import {
   Clock,
   Star,
   Activity,
+  Crown,
 } from "lucide-react";
-import MentorLayout from "@/components/mentor/MentorLayout";
+import TraineeLayout from "@/components/trainee/TraineeLayout";
 
 interface LeaderboardEntry {
   id: string;
@@ -32,9 +33,10 @@ interface LeaderboardEntry {
   totalTrainingTime: number;
   improvementRate: number;
   lastActivity: string;
+  isCurrentUser: boolean;
 }
 
-export default function MentorRankingsPage() {
+export default function TraineeRankingsPage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +51,7 @@ export default function MentorRankingsPage() {
   const fetchLeaderboard = async () => {
     try {
       setError(null);
-      const response = await fetch("/api/mentor/rankings");
+      const response = await fetch("/api/trainee/rankings");
 
       if (!response.ok) {
         throw new Error(`Failed to fetch rankings: ${response.status}`);
@@ -57,7 +59,6 @@ export default function MentorRankingsPage() {
 
       const data = await response.json();
 
-      // Ensure data is an array
       if (Array.isArray(data)) {
         setLeaderboard(data);
       } else {
@@ -76,7 +77,6 @@ export default function MentorRankingsPage() {
     }
   };
 
-  // Ensure leaderboard is always an array before sorting
   const sortedLeaderboard = Array.isArray(leaderboard)
     ? [...leaderboard].sort((a, b) => {
         switch (sortBy) {
@@ -99,6 +99,11 @@ export default function MentorRankingsPage() {
         }
       })
     : [];
+
+  const currentUser = sortedLeaderboard.find((entry) => entry.isCurrentUser);
+  const currentUserRank = currentUser
+    ? sortedLeaderboard.findIndex((entry) => entry.isCurrentUser) + 1
+    : null;
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
@@ -141,7 +146,7 @@ export default function MentorRankingsPage() {
 
   if (isLoading) {
     return (
-      <MentorLayout currentPage="rankings">
+      <TraineeLayout currentPage="rankings">
         <div className="space-y-6">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-600 rounded w-1/4 mb-4"></div>
@@ -153,13 +158,13 @@ export default function MentorRankingsPage() {
             </div>
           </div>
         </div>
-      </MentorLayout>
+      </TraineeLayout>
     );
   }
 
   if (error) {
     return (
-      <MentorLayout currentPage="rankings">
+      <TraineeLayout currentPage="rankings">
         <div className="space-y-6">
           <div className="text-center py-12">
             <Trophy className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -175,23 +180,23 @@ export default function MentorRankingsPage() {
             </Button>
           </div>
         </div>
-      </MentorLayout>
+      </TraineeLayout>
     );
   }
 
   return (
-    <MentorLayout currentPage="rankings">
+    <TraineeLayout currentPage="rankings">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2 flex items-center">
               <Trophy className="w-8 h-8 mr-3 text-[#00cfb6]" />
-              Trainee Rankings
+              Class Rankings
             </h1>
             <p className="text-gray-300">
-              Gamified leaderboard showing your trainees&apos; performance and
-              progress
+              See how you rank among your fellow trainees in your mentor&apos;s
+              program
             </p>
           </div>
 
@@ -248,17 +253,57 @@ export default function MentorRankingsPage() {
           </div>
         </div>
 
+        {/* Current User Rank Highlight */}
+        {currentUser && (
+          <Card className="bg-gradient-to-r from-[#00cfb6]/20 to-blue-500/20 border border-[#00cfb6]/30">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-2">
+                    <Crown className="w-6 h-6 text-[#00cfb6]" />
+                    <span className="text-white font-bold text-lg">
+                      Your Rank
+                    </span>
+                  </div>
+                  <Badge className="bg-[#00cfb6]/20 text-[#00cfb6] border-[#00cfb6]/30 text-lg px-3 py-1">
+                    #{currentUserRank}
+                  </Badge>
+                </div>
+                <div className="text-right">
+                  <p
+                    className={`text-2xl font-bold ${getScoreColor(
+                      currentUser.bestScore
+                    )}`}
+                  >
+                    {currentUser.bestScore}
+                  </p>
+                  <p className="text-gray-300 text-sm">Best Score</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Top 3 Podium */}
         {sortedLeaderboard.length >= 3 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             {/* 2nd Place */}
-            <Card className="bg-gradient-to-br from-gray-500/20 to-gray-600/20 border border-gray-500/30 order-2 md:order-1">
+            <Card
+              className={`bg-gradient-to-br from-gray-500/20 to-gray-600/20 border border-gray-500/30 order-2 md:order-1 ${
+                sortedLeaderboard[1].isCurrentUser
+                  ? "ring-2 ring-[#00cfb6]"
+                  : ""
+              }`}
+            >
               <CardContent className="p-6 text-center">
                 <div className="flex justify-center mb-4">
                   <Medal className="w-12 h-12 text-gray-300" />
                 </div>
                 <h3 className="text-lg font-bold text-white mb-1">
                   {sortedLeaderboard[1].trainee.name}
+                  {sortedLeaderboard[1].isCurrentUser && (
+                    <span className="text-[#00cfb6] ml-2">(You)</span>
+                  )}
                 </h3>
                 <p className="text-gray-400 text-sm mb-3">
                   {sortedLeaderboard[1].trainee.institution}
@@ -285,13 +330,22 @@ export default function MentorRankingsPage() {
             </Card>
 
             {/* 1st Place */}
-            <Card className="bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 border border-yellow-500/30 order-1 md:order-2 transform md:scale-105">
+            <Card
+              className={`bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 border border-yellow-500/30 order-1 md:order-2 transform md:scale-105 ${
+                sortedLeaderboard[0].isCurrentUser
+                  ? "ring-2 ring-[#00cfb6]"
+                  : ""
+              }`}
+            >
               <CardContent className="p-6 text-center">
                 <div className="flex justify-center mb-4">
                   <Trophy className="w-16 h-16 text-yellow-400" />
                 </div>
                 <h3 className="text-xl font-bold text-white mb-1">
                   {sortedLeaderboard[0].trainee.name}
+                  {sortedLeaderboard[0].isCurrentUser && (
+                    <span className="text-[#00cfb6] ml-2">(You)</span>
+                  )}
                 </h3>
                 <p className="text-gray-400 text-sm mb-3">
                   {sortedLeaderboard[0].trainee.institution}
@@ -321,13 +375,22 @@ export default function MentorRankingsPage() {
             </Card>
 
             {/* 3rd Place */}
-            <Card className="bg-gradient-to-br from-amber-600/20 to-amber-700/20 border border-amber-600/30 order-3">
+            <Card
+              className={`bg-gradient-to-br from-amber-600/20 to-amber-700/20 border border-amber-600/30 order-3 ${
+                sortedLeaderboard[2].isCurrentUser
+                  ? "ring-2 ring-[#00cfb6]"
+                  : ""
+              }`}
+            >
               <CardContent className="p-6 text-center">
                 <div className="flex justify-center mb-4">
                   <Award className="w-12 h-12 text-amber-400" />
                 </div>
                 <h3 className="text-lg font-bold text-white mb-1">
                   {sortedLeaderboard[2].trainee.name}
+                  {sortedLeaderboard[2].isCurrentUser && (
+                    <span className="text-[#00cfb6] ml-2">(You)</span>
+                  )}
                 </h3>
                 <p className="text-gray-400 text-sm mb-3">
                   {sortedLeaderboard[2].trainee.institution}
@@ -370,7 +433,9 @@ export default function MentorRankingsPage() {
                   <div
                     key={entry.id}
                     className={`flex items-center justify-between p-4 rounded-lg transition-all duration-200 hover:bg-white/5 ${
-                      index < 3
+                      entry.isCurrentUser
+                        ? "bg-[#00cfb6]/10 border border-[#00cfb6]/30"
+                        : index < 3
                         ? "bg-white/10 border border-white/20"
                         : "bg-white/5"
                     }`}
@@ -388,6 +453,11 @@ export default function MentorRankingsPage() {
                       <div className="flex-1 min-w-0">
                         <h4 className="text-white font-medium truncate">
                           {entry.trainee.name}
+                          {entry.isCurrentUser && (
+                            <span className="text-[#00cfb6] ml-2 font-bold">
+                              (You)
+                            </span>
+                          )}
                         </h4>
                         <div className="flex items-center space-x-4 text-sm text-gray-400">
                           <span className="truncate">
@@ -472,8 +542,7 @@ export default function MentorRankingsPage() {
                   No Rankings Available
                 </h3>
                 <p className="text-gray-400">
-                  Trainees need to complete surgery attempts to appear in
-                  rankings.
+                  Complete surgery attempts to appear in rankings.
                 </p>
               </div>
             )}
@@ -543,6 +612,6 @@ export default function MentorRankingsPage() {
           </div>
         )}
       </div>
-    </MentorLayout>
+    </TraineeLayout>
   );
 }

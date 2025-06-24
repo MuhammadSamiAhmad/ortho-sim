@@ -1,3 +1,5 @@
+// api/auth/register/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcrypt";
@@ -7,7 +9,7 @@ import {
   TraineeRegistrationSchema,
 } from "@/lib/validations";
 
-// Type definitions for API responses
+// --- Type Definitions for API Responses ---
 interface RegistrationSuccessResponse {
   success: true;
   userId: string;
@@ -17,32 +19,23 @@ interface RegistrationSuccessResponse {
   traineeProfileId?: string;
   mentorProfileId?: string;
 }
-
 interface RegistrationErrorResponse {
   error: string;
   message: string;
 }
-
 interface ValidationErrorResponse {
   error: string;
-  details: Array<{
-    field: string | number;
-    message: string;
-  }>;
+  // details: z.ZodError<any>['flatten']['fieldErrors']; // Use Zod's flattened error type
 }
 
-// Prisma error type
-interface PrismaError {
-  code: string;
-  message: string;
-  meta?: Record<string, unknown>;
-}
+// --- Zod Discriminated Union ---
+// This is the key to solving the type-narrowing issue.
+const CombinedRegistrationSchema = z.discriminatedUnion("userType", [
+  MentorRegistrationSchema.extend({ userType: z.literal("MENTOR") }),
+  TraineeRegistrationSchema.extend({ userType: z.literal("TRAINEE") }),
+]);
 
-// Combined schema for initial validation
-const BaseRegistrationSchema = z.object({
-  userType: z.enum(["MENTOR", "TRAINEE"]),
-});
-
+// --- API Handler ---
 export async function POST(
   req: NextRequest
 ): Promise<
@@ -55,46 +48,22 @@ export async function POST(
   try {
     const body = await req.json();
 
-    // First, validate the basic structure
-    const baseValidation = BaseRegistrationSchema.safeParse(body);
-    if (!baseValidation.success) {
-      return NextResponse.json(
-        {
-          error: "Invalid request",
-          details: baseValidation.error.errors.map((err) => ({
-            field: err.path[0],
-            message: err.message,
-          })),
-        },
-        { status: 400 }
-      );
-    }
+    // 1. Validate the body against the combined schema ONCE.
+    const validationResult = CombinedRegistrationSchema.safeParse(body);
 
-    const { userType, ...userData } = body;
-
-    // Validate based on user type
-    const schema =
-      userType === "MENTOR"
-        ? MentorRegistrationSchema
-        : TraineeRegistrationSchema;
-
-    const validationResult = schema.safeParse(userData);
     if (!validationResult.success) {
       return NextResponse.json(
         {
           error: "Validation failed",
-          details: validationResult.error.errors.map((err) => ({
-            field: err.path[0],
-            message: err.message,
-          })),
+          details: validationResult.error.flatten().fieldErrors,
         },
         { status: 400 }
       );
     }
 
+    // `validatedData` is now a perfectly typed discriminated union.
     const validatedData = validationResult.data;
 
-    // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email: validatedData.email },
     });
@@ -103,215 +72,119 @@ export async function POST(
       return NextResponse.json(
         {
           error: "Account already exists",
-          message:
-            "An account with this email address already exists. Please use a different email or try signing in instead.",
+          message: "An account with this email address already exists.",
         },
         { status: 409 }
       );
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(validatedData.password, 10);
 
-    if (userType === "MENTOR") {
-      const mentorData = validatedData as z.infer<
-        typeof MentorRegistrationSchema
-      >;
-
-      // Generate unique mentor code
+    // --- Mentor Registration Flow ---
+    if (validatedData.userType === "MENTOR") {
+      // TypeScript now knows `validatedData` is the Mentor shape.
+      const { name, email, specialization, qualification } = validatedData;
       const mentorCode = `MENTOR_${Date.now()
         .toString()
-        .slice(-8)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+        .slice(-6)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
-      try {
-        // Create mentor user and profile
-        const user = await prisma.user.create({
-          data: {
-            email: mentorData.email,
-            password: hashedPassword,
-            name: mentorData.name,
-            userType: "MENTOR",
-            mentorProfile: {
-              create: {
-                specialization: mentorData.specialization,
-                qualification: mentorData.qualification,
-                mentorCode,
-                mentorCodeExpiry: new Date(
-                  Date.now() + 365 * 24 * 60 * 60 * 1000
-                ), // 1 year
-                isCodeActive: true,
-              },
+      const mentorUser = await prisma.user.create({
+        data: {
+          name,
+          email,
+          password: hashedPassword,
+          userType: "MENTOR",
+          mentorProfile: {
+            create: {
+              specialization,
+              qualification,
+              mentorCode,
+              isCodeActive: true,
+              mentorCodeExpiry: new Date(
+                Date.now() + 365 * 24 * 60 * 60 * 1000
+              ),
             },
           },
-          include: { mentorProfile: true },
-        });
-
-        return NextResponse.json({
-          success: true,
-          userId: user.id,
-          name: user.name,
-          userType: user.userType,
-          mentorCode,
-          mentorProfileId: user.mentorProfile?.id,
-        });
-      } catch (dbError) {
-        console.error("Database error creating mentor:", dbError);
-        throw dbError;
-      }
-    } else {
-      const traineeData = validatedData as z.infer<
-        typeof TraineeRegistrationSchema
-      >;
-
-      // Verify mentor code exists and is active
-      const mentor = await prisma.mentorProfile.findUnique({
-        where: { mentorCode: traineeData.mentorCode },
+        },
+        include: { mentorProfile: true },
       });
 
-      if (!mentor) {
+      return NextResponse.json({
+        success: true,
+        userId: mentorUser.id,
+        name: mentorUser.name,
+        userType: mentorUser.userType,
+        mentorCode,
+        mentorProfileId: mentorUser.mentorProfile?.id,
+      });
+    }
+    // --- Trainee Registration Flow ---
+    else {
+      // TypeScript now knows `validatedData` is the Trainee shape,
+      // and `graduationYear` is a number.
+      const { name, email, institution, graduationYear, mentorCode } =
+        validatedData;
+
+      const mentor = await prisma.mentorProfile.findUnique({
+        where: { mentorCode },
+      });
+      if (
+        !mentor ||
+        !mentor.isCodeActive ||
+        (mentor.mentorCodeExpiry && new Date() > mentor.mentorCodeExpiry)
+      ) {
         return NextResponse.json(
           {
-            error: "Invalid mentor code",
+            error: "Invalid Mentor Code",
             message:
-              "The mentor code you entered doesn't exist. Please check with your mentor and try again.",
+              "The mentor code you entered is invalid, inactive, or expired.",
           },
           { status: 404 }
         );
       }
 
-      if (!mentor.isCodeActive) {
-        return NextResponse.json(
-          {
-            error: "Mentor code inactive",
-            message:
-              "The mentor code you entered is no longer active. Please request a new code from your mentor.",
-          },
-          { status: 403 }
-        );
-      }
-
-      // Check if mentor code has expired
-      if (mentor.mentorCodeExpiry && mentor.mentorCodeExpiry < new Date()) {
-        return NextResponse.json(
-          {
-            error: "Mentor code expired",
-            message:
-              "The mentor code you entered has expired. Please request a new code from your mentor.",
-          },
-          { status: 403 }
-        );
-      }
-
-      try {
-        // Create trainee user and profile
-        const user = await prisma.user.create({
-          data: {
-            email: traineeData.email,
-            password: hashedPassword,
-            name: traineeData.name,
-            userType: "TRAINEE",
-            traineeProfile: {
-              create: {
-                institution: traineeData.institution,
-                graduationYear: traineeData.graduationYear,
-                mentorId: mentor.id,
-                leaderboard: {
-                  create: {
-                    totalAttempts: 0,
-                    totalTrainingTime: 0,
-                  },
-                },
-              },
+      const traineeUser = await prisma.user.create({
+        data: {
+          name,
+          email,
+          password: hashedPassword,
+          userType: "TRAINEE",
+          traineeProfile: {
+            create: {
+              institution,
+              graduationYear, // NO ERROR HERE! It's a number.
+              mentorId: mentor.id,
+              leaderboard: { create: {} },
             },
           },
-          include: { traineeProfile: true },
-        });
+        },
+        include: { traineeProfile: true }, // NO ERROR HERE!
+      });
 
-        return NextResponse.json({
-          success: true,
-          userId: user.id,
-          name: user.name,
-          userType: user.userType,
-          traineeProfileId: user.traineeProfile?.id,
-        });
-      } catch (dbError) {
-        console.error("Database error creating trainee:", dbError);
-        throw dbError;
-      }
+      return NextResponse.json({
+        success: true,
+        userId: traineeUser.id,
+        name: traineeUser.name,
+        userType: traineeUser.userType,
+        traineeProfileId: traineeUser.traineeProfile?.id,
+      });
     }
   } catch (err: unknown) {
-    console.error("Registration error:", err);
-
+    // FIX: All error responses now include a `message` property to match the types.
+    console.error("Registration API Error:", err);
     if (err instanceof z.ZodError) {
       return NextResponse.json(
         {
-          error: "Validation error",
-          details: err.errors.map((error) => ({
-            field: error.path[0],
-            message: error.message,
-          })),
+          error: "Unexpected Zod error",
+          message: err.message,
         },
         { status: 400 }
       );
     }
-
-    // Handle Prisma errors
-    if (err && typeof err === "object" && "code" in err) {
-      const prismaError = err as PrismaError;
-      console.error("Database error:", prismaError);
-
-      // Handle specific Prisma error codes
-      switch (prismaError.code) {
-        case "P2002":
-          // Unique constraint violation
-          return NextResponse.json(
-            {
-              error: "Duplicate entry",
-              message:
-                "An account with this email already exists. Please use a different email address.",
-            },
-            { status: 409 }
-          );
-        case "P2003":
-          // Foreign key constraint violation
-          return NextResponse.json(
-            {
-              error: "Invalid reference",
-              message:
-                "The mentor code provided is invalid. Please check and try again.",
-            },
-            { status: 400 }
-          );
-        default:
-          return NextResponse.json(
-            {
-              error: "Database error",
-              message: "Unable to create your account. Please try again later.",
-            },
-            { status: 500 }
-          );
-      }
-    }
-
-    // Handle other known error types
-    if (err instanceof Error) {
-      console.error("Application error:", err.message, err.stack);
-      return NextResponse.json(
-        {
-          error: "Server error",
-          message:
-            "Something went wrong while creating your account. Please try again in a moment.",
-        },
-        { status: 500 }
-      );
-    }
-
-    // Fallback for completely unknown errors
-    console.error("Unknown error:", err);
     return NextResponse.json(
       {
-        error: "Server error",
-        message: "An unexpected error occurred. Please try again in a moment.",
+        error: "Internal Server Error",
+        message: "An unexpected error occurred. Please try again later.",
       },
       { status: 500 }
     );

@@ -4,11 +4,11 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { signIn, getSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Eye, EyeOff, Mail, Lock, AlertCircle } from "lucide-react";
-import { useAuthStore } from "@/lib/auth-store";
 import { LoginSchema, type LoginData } from "@/lib/validations";
 import Link from "next/link";
 import gsap from "gsap";
@@ -17,40 +17,10 @@ import { useGSAP } from "@gsap/react";
 interface ErrorState {
   type: "general" | "email" | "password" | "validation";
   message: string;
-  field?: string;
 }
-
-// API Response types
-interface LoginSuccessResponse {
-  success: true;
-  userId: string;
-  name: string;
-  userType: "MENTOR" | "TRAINEE";
-  traineeProfileId: string | null;
-  mentorProfileId: string | null;
-}
-
-interface LoginErrorResponse {
-  error: string;
-  message: string;
-}
-
-interface ValidationErrorResponse {
-  error: string;
-  details: Array<{
-    field: string;
-    message: string;
-  }>;
-}
-
-type ApiResponse =
-  | LoginSuccessResponse
-  | LoginErrorResponse
-  | ValidationErrorResponse;
 
 const LoginPage = () => {
   const router = useRouter();
-  const { setUser, setLoading, isLoading } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<ErrorState | null>(null);
@@ -132,143 +102,66 @@ const LoginPage = () => {
 
   const onSubmit = async (data: LoginData) => {
     setIsSubmitting(true);
-    setLoading(true);
-    setError(null); // Clear any previous errors
+    setError(null);
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+      // Use NextAuth signIn function
+      const result = await signIn("credentials", {
+        email: data.email,
+        password: data.password,
+        redirect: false, // Don't redirect automatically
       });
 
-      const result: ApiResponse = await response.json();
-
-      if (!response.ok) {
+      if (result?.error) {
         // Handle different types of errors
-        switch (response.status) {
-          case 400:
-            // Validation errors
-            if ("details" in result && Array.isArray(result.details)) {
-              const firstError = result.details[0];
-              setError({
-                type: "validation",
-                message: firstError.message,
-                field: firstError.field,
-              });
-            } else if ("message" in result) {
-              setError({
-                type: "general",
-                message: result.message,
-              });
-            } else {
-              setError({
-                type: "general",
-                message: "Please check your input and try again.",
-              });
-            }
-            break;
-
-          case 404:
-            // Account not found
-            setError({
-              type: "email",
-              message:
-                "message" in result
-                  ? result.message
-                  : "No account found with this email address.",
-            });
-            break;
-
-          case 401:
-            // Invalid password
-            setError({
-              type: "password",
-              message:
-                "message" in result
-                  ? result.message
-                  : "The password you entered is incorrect.",
-            });
-            break;
-
-          case 500:
-            // Server error
-            setError({
-              type: "general",
-              message:
-                "message" in result
-                  ? result.message
-                  : "Something went wrong. Please try again later.",
-            });
-            break;
-
-          default:
-            setError({
-              type: "general",
-              message: "An unexpected error occurred. Please try again.",
-            });
+        if (result.error === "CredentialsSignin") {
+          setError({
+            type: "general",
+            message:
+              "Invalid email or password. Please check your credentials and try again.",
+          });
+        } else {
+          setError({
+            type: "general",
+            message: "An error occurred during sign in. Please try again.",
+          });
         }
         return;
       }
 
-      // Type guard for success response
-      if ("success" in result && result.success) {
-        // Success - set user in store
-        setUser({
-          id: result.userId,
-          email: data.email,
-          name: result.name || "",
-          userType: result.userType,
-        });
+      if (result?.ok) {
+        const session = await getSession();
 
-        // Success animation
-        const exitTl = gsap.timeline({
-          onComplete: () => {
-            router.push(
-              result.userType === "MENTOR"
-                ? "/mentor/dashboard"
-                : "/trainee/dashboard"
-            );
-          },
-        });
+        if (session && session.user) {
+          // Success animation
+          const exitTl = gsap.timeline({
+            onComplete: () => {
+              // This line is now safe and will not have an error
+              const redirectPath =
+                session.user.userType === "MENTOR"
+                  ? "/mentor/dashboard"
+                  : "/trainee/dashboard";
+              router.push(redirectPath);
+            },
+          });
 
-        exitTl.to([headerRef.current, cardRef.current], {
-          opacity: 0,
-          y: -20,
-          duration: 0.4,
-          stagger: 0.1,
-        });
-      } else {
-        // Fallback error handling
-        setError({
-          type: "general",
-          message: "An unexpected response was received. Please try again.",
-        });
+          exitTl.to([headerRef.current, cardRef.current], {
+            opacity: 0,
+            y: -20,
+            duration: 0.4,
+            stagger: 0.1,
+          });
+        }
       }
     } catch (networkError: unknown) {
       console.error("Network error:", networkError);
-
-      // Handle different types of network errors
-      if (networkError instanceof TypeError) {
-        setError({
-          type: "general",
-          message:
-            "Unable to connect to the server. Please check your internet connection and try again.",
-        });
-      } else if (networkError instanceof Error) {
-        setError({
-          type: "general",
-          message: `Network error: ${networkError.message}`,
-        });
-      } else {
-        setError({
-          type: "general",
-          message: "An unexpected network error occurred. Please try again.",
-        });
-      }
+      setError({
+        type: "general",
+        message:
+          "Unable to connect to the server. Please check your internet connection and try again.",
+      });
     } finally {
       setIsSubmitting(false);
-      setLoading(false);
     }
   };
 
@@ -305,22 +198,11 @@ const LoginPage = () => {
             {error && (
               <div
                 ref={errorRef}
-                className={`p-3 rounded-lg border flex items-start gap-3 ${
-                  error.type === "email"
-                    ? "bg-orange-500/10 border-orange-500/20 text-orange-300"
-                    : error.type === "password"
-                    ? "bg-red-500/10 border-red-500/20 text-red-300"
-                    : "bg-yellow-500/10 border-yellow-500/20 text-yellow-300"
-                }`}
+                className="p-3 rounded-lg border bg-red-500/10 border-red-500/20 text-red-300 flex items-start gap-3"
               >
                 <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <div className="text-sm">
-                  <p className="font-medium">
-                    {error.type === "email" && "Email Not Found"}
-                    {error.type === "password" && "Incorrect Password"}
-                    {error.type === "validation" && "Input Error"}
-                    {error.type === "general" && "Error"}
-                  </p>
+                  <p className="font-medium">Sign In Failed</p>
                   <p className="opacity-90">{error.message}</p>
                 </div>
               </div>
@@ -346,9 +228,7 @@ const LoginPage = () => {
                       form.register("email").onChange(e);
                       clearError();
                     }}
-                    className={`pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-[#00cfb6] focus:ring-[#00cfb6] ${
-                      error?.type === "email" ? "border-orange-500/50" : ""
-                    }`}
+                    className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-[#00cfb6] focus:ring-[#00cfb6]"
                   />
                 </div>
                 {form.formState.errors.email && (
@@ -377,9 +257,7 @@ const LoginPage = () => {
                       form.register("password").onChange(e);
                       clearError();
                     }}
-                    className={`pl-10 pr-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-[#00cfb6] focus:ring-[#00cfb6] ${
-                      error?.type === "password" ? "border-red-500/50" : ""
-                    }`}
+                    className="pl-10 pr-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-[#00cfb6] focus:ring-[#00cfb6]"
                   />
                   <button
                     type="button"
@@ -402,7 +280,7 @@ const LoginPage = () => {
 
               <Button
                 type="submit"
-                disabled={isSubmitting || isLoading}
+                disabled={isSubmitting}
                 className="w-full bg-[#00cfb6] hover:bg-[#00cfb6]/90 text-slate-900 font-semibold py-3 rounded-lg transition-all duration-300"
               >
                 {isSubmitting ? (

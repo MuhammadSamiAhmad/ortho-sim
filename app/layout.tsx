@@ -1,10 +1,13 @@
+import type React from "react";
 import type { Metadata } from "next";
 import { Faustina } from "next/font/google";
 import "./globals.css";
+import { Providers } from "./providers";
+import { ThemeProvider } from "@/components/ui/theme-provider";
 
 const faustina = Faustina({
   subsets: ["latin"],
-  weight: ["300", "800"],
+  weight: ["300", "400", "500", "600", "700", "800"],
   variable: "--font-faustina",
 });
 
@@ -21,7 +24,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${faustina.className}`}>{children}</body>
+      <body className={`${faustina.className}`}>
+        <ThemeProvider>
+          <Providers>{children}</Providers>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }
